@@ -1,6 +1,6 @@
 defmodule Zerodha.Constants do
-  @default_root_uri "https://api_kite_trade"
-  @default_login_uri "https://kite_trade/connect/login"
+  @default_root_uri "https://api.kite.trade"
+  @default_login_uri "https://kite.trade/connect/login"
   @default_timeout 7000
 
   # # Constants
