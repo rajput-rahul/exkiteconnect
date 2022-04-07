@@ -152,7 +152,7 @@ defmodule Zerodha.KiteConnect do
         client: client
       }) do
     client
-    |> delete!(Constants.routes()[:api_token_invalidate], %{
+    |> delete(Constants.routes()[:api_token_invalidate], %{
       api_key: api_key,
       access_token: access_token
     })
@@ -163,7 +163,7 @@ defmodule Zerodha.KiteConnect do
         access_token
       ) do
     client
-    |> delete!(Constants.routes()[:api_token_invalidate], %{
+    |> delete(Constants.routes()[:api_token_invalidate], %{
       api_key: api_key,
       access_token: access_token
     })
@@ -178,7 +178,7 @@ defmodule Zerodha.KiteConnect do
 
   def profile(%Params{client: client}) do
     client
-    |> get!(Constants.routes()[:user_profile])
+    |> get(Constants.routes()[:user_profile])
   end
 
   @doc """
@@ -186,7 +186,7 @@ defmodule Zerodha.KiteConnect do
   """
   def margins(%Params{client: client}) do
     client
-    |> get!(Constants.routes()[:user_margins])
+    |> get(Constants.routes()[:user_margins])
   end
 
   @doc """
@@ -195,7 +195,7 @@ defmodule Zerodha.KiteConnect do
   """
   def margins(%Params{client: client}, segment) do
     client
-    |> get!(Constants.routes()[:user_margins], %{segment: segment})
+    |> get(Constants.routes()[:user_margins], %{segment: segment})
   end
 
   @doc """
@@ -239,10 +239,223 @@ defmodule Zerodha.KiteConnect do
       |> Enum.filter(fn {_, v} -> !is_nil(v) end)
       |> Enum.into(%{})
 
-    # TODO: need to put url args
-    # url_args={"variety": variety}
     client
-    |> post!(Constants.routes()[:order_place], order_params)
+    |> post(Constants.routes()[:order_place], order_params, query: %{variety: variety})
     |> IO.inspect()
+
+    # We need to extract order_id from the response
+  end
+
+  @doc """
+  Modifies an open order
+  """
+  def modify_order(
+        %Params{client: client},
+        variety,
+        order_id,
+        parent_order_id \\ nil,
+        quantity \\ nil,
+        order_type \\ nil,
+        price \\ nil,
+        validity \\ nil,
+        disclosed_quantity \\ nil,
+        trigger_price \\ nil
+      ) do
+    order_params =
+      %{}
+      |> Map.put(:variety, variety)
+      |> Map.put(:order_id, order_id)
+      |> Map.put(:quantity, quantity)
+      |> Map.put(:parent_order_id, parent_order_id)
+      |> Map.put(:order_type, order_type)
+      |> Map.put(:price, price)
+      |> Map.put(:validity, validity)
+      |> Map.put(:disclosed_quantity, disclosed_quantity)
+      |> Map.put(:trigger_price, trigger_price)
+      |> Enum.filter(fn {_, v} -> !is_nil(v) end)
+      |> Enum.into(%{})
+
+    client
+    |> put(Constants.routes()[:order_modify], order_params,
+      query: %{variety: variety, order_id: order_id}
+    )
+    |> IO.inspect()
+
+    # We need to extract order_id from the response
+  end
+
+  @doc """
+  Cancel an order.
+  """
+  def cancel_order(%Params{client: client}, variety, order_id, parent_order_id \\ nil) do
+    client
+    |> delete(Constants.routes()[:order_cancel], %{parent_order_id: parent_order_id})
+
+    # |> delete!(Constants.routes()[:order_cancel], %{parent_order_id: parent_order_id},
+    #   query: %{variety: variety, order_id: order_id}
+    # )
+    # TODO: need to put url args
+    # , query: %{variety: variety, order_id: order_id}
+  end
+
+  @doc """
+  Exit a BO/CO order.
+  """
+  def exit_order(%Params{} = params, variety, order_id, parent_order_id \\ nil) do
+    cancel_order(params, variety, order_id, parent_order_id)
+  end
+
+  defp format_response, do: true
+
+  @doc """
+  Get list of orders.
+  """
+  def orders(%Params{client: client}) do
+    format_response()
+
+    client
+    |> get(Constants.routes()[:orders])
+  end
+
+  @doc """
+  Get history of individual order.
+  - `order_id` is the ID of the order to retrieve order history.
+  """
+  def order_history(%Params{client: client}, order_id) do
+    client
+    |> get(Constants.routes()[:orders_info], query: %{order_id: order_id})
+  end
+
+  @doc """
+  Retrieve the list of trades executed (all or ones under a particular order).
+  An order can be executed in tranches based on market conditions.
+  These trades are individually recorded under an order.
+  """
+  def trades(%Params{client: client}) do
+    client
+    |> get(Constants.routes()[:trades])
+  end
+
+  @doc """
+  Retrieve the list of trades executed for a particular order.
+  - `order_id` is the ID of the order to retrieve trade history.
+  """
+  def order_trades(%Params{client: client}, order_id) do
+    client
+    |> get(Constants.routes()[:order_trades], query: %{order_id: order_id})
+  end
+
+  @doc """
+  Retrieve the list of positions.
+  """
+  def positions(%Params{client: client}) do
+    client
+    |> get(Constants.routes()[:portfolio_positions])
+  end
+
+  @doc """
+  Retrieve the list of equity holdings.
+  """
+  def holdings(%Params{client: client}) do
+    client
+    |> get(Constants.routes()[:portfolio_holdings])
+  end
+
+  @doc """
+  Modify an open position's product type.
+  """
+  def convert_position(
+        %Params{client: client},
+        exchange,
+        tradingsymbol,
+        transaction_type,
+        position_type,
+        quantity,
+        old_product,
+        new_product
+      ) do
+    order_params =
+      %{}
+      |> Map.put(:exchange, exchange)
+      |> Map.put(:tradingsymbol, tradingsymbol)
+      |> Map.put(:transaction_type, transaction_type)
+      |> Map.put(:position_type, position_type)
+      |> Map.put(:quantity, quantity)
+      |> Map.put(:old_product, old_product)
+      |> Map.put(:new_product, new_product)
+
+    # |> Enum.filter(fn {_, v} -> !is_nil(v) end)
+    # |> Enum.into(%{})
+
+    client
+    |> put(Constants.routes()[:portfolio_positions_convert], order_params)
+    |> IO.inspect()
+  end
+
+  @doc """
+  Get all mutual fund orders.
+  """
+  def mf_orders(%Params{client: client}) do
+    client
+    |> get(Constants.routes()[:mf_orders])
+  end
+
+  @doc """
+  Get individual mutual fund order info.
+  """
+  def mf_orders(%Params{client: client}, order_id) do
+    client
+    |> get(Constants.routes()[:mf_order_info], query: %{order_id: order_id})
+  end
+
+  @doc """
+  Place a mutual fund order.
+  """
+  def place_mf_order(
+        %Params{client: client},
+        tradingsymbol,
+        transaction_type,
+        quantity \\ nil,
+        amount \\ nil,
+        tag \\ nil
+      ) do
+    order_params =
+      %{}
+      |> Map.put(:tradingsymbol, tradingsymbol)
+      |> Map.put(:transaction_type, transaction_type)
+      |> Map.put(:amount, amount)
+      |> Map.put(:quantity, quantity)
+      |> Map.put(:tag, tag)
+
+    # |> Enum.filter(fn {_, v} -> !is_nil(v) end)
+    # |> Enum.into(%{})
+
+    client
+    |> post(Constants.routes()[:mf_order_place], order_params)
+    |> IO.inspect()
+  end
+
+  @doc """
+  Cancel a mutual fund order.
+  """
+  def cancel_mf_order(%Params{client: client}, order_id) do
+    client
+    |> get(Constants.routes()[:mf_order_cancel], query: %{order_id: order_id})
+  end
+
+  @doc """
+  Get list of all mutual fund SIP's.
+  """
+  def mf_sips(%Params{client: client}) do
+    client
+    |> get(Constants.routes()[:mf_sips])
+  end
+
+  @doc """
+  Get individual mutual fund SIP info.
+  """
+  def mf_sips(%Params{client: client}, sip_id) do
+    client
+    |> get(Constants.routes()[:mf_sip_info], query: %{sip_id: sip_id})
   end
 end
