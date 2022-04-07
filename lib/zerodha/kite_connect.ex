@@ -458,4 +458,102 @@ defmodule Zerodha.KiteConnect do
     client
     |> get(Constants.routes()[:mf_sip_info], query: %{sip_id: sip_id})
   end
+
+  @doc """
+  Place a mutual fund SIP.
+  """
+  def place_mf_sip(
+        %Params{client: client},
+        tradingsymbol,
+        amount,
+        installments,
+        frequency,
+        initial_amount \\ nil,
+        installment_day \\ nil,
+        tag \\ nil
+      ) do
+    order_params =
+      %{}
+      |> Map.put(:tradingsymbol, tradingsymbol)
+      |> Map.put(:instalments, installments)
+      |> Map.put(:amount, amount)
+      |> Map.put(:frequency, frequency)
+      |> Map.put(:initial_amount, initial_amount)
+      |> Map.put(:instalment_day, installment_day)
+      |> Map.put(:tag, tag)
+
+    # |> Enum.filter(fn {_, v} -> !is_nil(v) end)
+    # |> Enum.into(%{})
+
+    client
+    |> post(Constants.routes()[:mf_sip_place], order_params)
+    |> IO.inspect()
+  end
+
+  @doc """
+  Place a mutual fund SIP.
+  """
+  def modify_mf_sip(
+        %Params{client: client},
+        sip_id,
+        amount \\ nil,
+        status \\ nil,
+        installments \\ nil,
+        frequency \\ nil,
+        installment_day \\ nil
+      ) do
+    order_params =
+      %{}
+      |> Map.put(:status, status)
+      |> Map.put(:instalments, installments)
+      |> Map.put(:amount, amount)
+      |> Map.put(:frequency, frequency)
+      |> Map.put(:instalment_day, installment_day)
+
+    client
+    |> put(Constants.routes()[:mf_sip_place], order_params, query: %{sip_id: sip_id})
+    |> IO.inspect()
+  end
+
+  @doc """
+  Cancel a mutual fund SIP.
+  """
+  def cancel_mf_sip(%Params{client: client}, sip_id) do
+    client
+    |> delete(Constants.routes()[:mf_sip_cancel], query: %{sip_id: sip_id})
+  end
+
+  @doc """
+  Get list of mutual fund holdings.
+  """
+  def mf_holdings(%Params{client: client}) do
+    client
+    |> get(Constants.routes()[:mf_holdings])
+  end
+
+  @doc """
+  Get list of mutual fund instruments.
+  """
+  def mf_instruments(%Params{client: client}) do
+    client
+    |> get(Constants.routes()[:mf_instruments])
+  end
+
+  def instruments(%Params{client: client}) do
+    client
+    |> get(Constants.routes()[:market_instruments_all])
+  end
+
+  @doc """
+  Retrieve the list of market instruments available to trade.
+
+  Note that the results could be large, several hundred KBs in size,
+  with tens of thousands of entries in the list.
+
+  - `exchange` is specific exchange to fetch (Optional)
+  """
+  def instruments(%Params{client: client}, exchange) do
+    client
+    |> get(Constants.routes()[:market_instruments], query: %{exchange: exchange})
+  end
 end
