@@ -8,5 +8,7 @@ defmodule Zerodha.Params do
             access_token: "",
             proxies: [],
             root_url: default_root_url(),
+            client: nil,
+            response: nil,
             timeout: default_timeout()
 end
