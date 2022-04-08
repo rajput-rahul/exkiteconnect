@@ -14,7 +14,7 @@ defmodule Zerodha.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: [:logger, :eex]
     ]
   end
 
@@ -22,10 +22,9 @@ defmodule Zerodha.MixProject do
   defp deps do
     [
       {:tesla, "~> 1.4"},
-      # optional, but recommended adapter
       {:hackney, "~> 1.17"},
-      # optional, required by JSON middleware
-      {:jason, ">= 1.0.0"}
+      {:jason, ">= 1.0.0"},
+      {:csv, "~> 2.4"}
     ]
   end
 end

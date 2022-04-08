@@ -75,6 +75,36 @@ defmodule Zerodha.KiteConnect do
     Tesla.client(middleware)
   end
 
+  defp do_get(%Params{client: client}, route, url_args \\ nil, query \\ %{}) do
+    client
+    |> get(format_url(route, url_args), query: query)
+  end
+
+  defp do_post(%Params{client: client}, route, body_params, url_args \\ nil, query \\ %{}) do
+    client
+    |> post(format_url(route, url_args), body_params, query: query)
+  end
+
+  defp do_put(%Params{client: client}, route, body_params, url_args \\ nil, query \\ %{}) do
+    client
+    |> put(format_url(route, url_args), body_params, query: query)
+  end
+
+  defp do_delete(%Params{client: client}, route, url_args \\ nil, query \\ %{}) do
+    client
+    |> delete(format_url(route, url_args), query: query)
+  end
+
+  # def format(route, url_args), do: format_url(route, url_args)
+
+  defp format_url(route, url_args) when is_nil(url_args) do
+    @routes[route]
+  end
+
+  defp format_url(route, url_args) do
+    EEx.eval_string(@routes[route], url_args)
+  end
+
   @doc """
   Set a callback hook for session (`TokenError` -- timeout, expiry etc.) errors.
   An `access_token` (login session) can become invalid for a number of
@@ -144,24 +174,29 @@ defmodule Zerodha.KiteConnect do
   Kill the session by invalidating the access token.
   - `access_token` to invalidate. Default is the active `access_token`.
   """
-  def invalidate_access_token(%Params{
-        access_token: access_token,
-        api_key: api_key,
-        client: client
-      }) do
-    client
-    |> delete(@routes[:api_token_invalidate], %{
+  def invalidate_access_token(
+        %Params{
+          access_token: access_token,
+          api_key: api_key
+        } = params
+      ) do
+    # client
+    # |> delete(@routes[:api_token_invalidate], query: %{
+    #   api_key: api_key,
+    #   access_token: access_token
+    # })
+
+    do_delete(params, :api_token_invalidate, nil, %{
       api_key: api_key,
       access_token: access_token
     })
   end
 
   def invalidate_access_token(
-        %Params{api_key: api_key, client: client},
+        %Params{api_key: api_key} = params,
         access_token
       ) do
-    client
-    |> delete(@routes[:api_token_invalidate], %{
+    do_delete(params, :api_token_invalidate, nil, %{
       api_key: api_key,
       access_token: access_token
     })
@@ -174,33 +209,30 @@ defmodule Zerodha.KiteConnect do
   """
   def renew_access_token, do: true
 
-  def profile(%Params{client: client}) do
-    client
-    |> get(@routes[:user_profile])
+  def profile(%Params{} = params) do
+    do_get(params, :user_profile)
   end
 
   @doc """
   Get account balance and cash margin details for a particular segment.
   """
-  def margins(%Params{client: client}) do
-    client
-    |> get(@routes[:user_margins])
+  def margins(%Params{} = params) do
+    do_get(params, :user_margins)
   end
 
   @doc """
   Get account balance and cash margin details for a particular segment.
   - `segment` is the trading segment (eg: equity or commodity)
   """
-  def margins(%Params{client: client}, segment) do
-    client
-    |> get(@routes[:user_margins], %{segment: segment})
+  def margins(%Params{} = params, segment) do
+    do_get(params, :user_margins_segment, segment: segment)
   end
 
   @doc """
   Place an order
   """
   def place_order(
-        %Params{client: client},
+        %Params{} = params,
         variety,
         exchange,
         tradingsymbol,
@@ -237,9 +269,7 @@ defmodule Zerodha.KiteConnect do
       |> Enum.filter(fn {_, v} -> !is_nil(v) end)
       |> Enum.into(%{})
 
-    client
-    |> post(@routes[:order_place], order_params, query: %{variety: variety})
-    |> IO.inspect()
+    do_post(params, :order_place, order_params, variety: variety)
 
     # We need to extract order_id from the response
   end
@@ -248,7 +278,7 @@ defmodule Zerodha.KiteConnect do
   Modifies an open order
   """
   def modify_order(
-        %Params{client: client},
+        %Params{} = params,
         variety,
         order_id,
         parent_order_id \\ nil,
@@ -273,9 +303,7 @@ defmodule Zerodha.KiteConnect do
       |> Enum.filter(fn {_, v} -> !is_nil(v) end)
       |> Enum.into(%{})
 
-    client
-    |> put(@routes[:order_modify], order_params, query: %{variety: variety, order_id: order_id})
-    |> IO.inspect()
+    do_put(params, :order_modify, order_params, variety: variety, order_id: order_id)
 
     # We need to extract order_id from the response
   end
@@ -283,15 +311,10 @@ defmodule Zerodha.KiteConnect do
   @doc """
   Cancel an order.
   """
-  def cancel_order(%Params{client: client}, variety, order_id, parent_order_id \\ nil) do
-    client
-    |> delete(@routes[:order_cancel], %{parent_order_id: parent_order_id})
-
-    # |> delete!(@routes[:order_cancel], %{parent_order_id: parent_order_id},
-    #   query: %{variety: variety, order_id: order_id}
-    # )
-    # TODO: need to put url args
-    # , query: %{variety: variety, order_id: order_id}
+  def cancel_order(%Params{} = params, variety, order_id, parent_order_id \\ nil) do
+    do_delete(params, :order_cancel, [variety: variety, order_id: order_id], %{
+      parent_order_id: parent_order_id
+    })
   end
 
   @doc """
@@ -302,24 +325,21 @@ defmodule Zerodha.KiteConnect do
   end
 
   defp format_response, do: true
+  # TODO: Still need to implement
 
   @doc """
   Get list of orders.
   """
-  def orders(%Params{client: client}) do
-    format_response()
-
-    client
-    |> get(@routes[:orders])
+  def orders(%Params{} = params) do
+    do_get(params, :orders)
   end
 
   @doc """
   Get history of individual order.
   - `order_id` is the ID of the order to retrieve order history.
   """
-  def order_history(%Params{client: client}, order_id) do
-    client
-    |> get(@routes[:orders_info], query: %{order_id: order_id})
+  def order_history(%Params{} = params, order_id) do
+    do_get(params, :orders_info, order_id: order_id)
   end
 
   @doc """
@@ -327,41 +347,37 @@ defmodule Zerodha.KiteConnect do
   An order can be executed in tranches based on market conditions.
   These trades are individually recorded under an order.
   """
-  def trades(%Params{client: client}) do
-    client
-    |> get(@routes[:trades])
+  def trades(%Params{} = params) do
+    do_get(params, :trades)
   end
 
   @doc """
   Retrieve the list of trades executed for a particular order.
   - `order_id` is the ID of the order to retrieve trade history.
   """
-  def order_trades(%Params{client: client}, order_id) do
-    client
-    |> get(@routes[:order_trades], query: %{order_id: order_id})
+  def order_trades(%Params{} = params, order_id) do
+    do_get(params, :order_trades, order_id: order_id)
   end
 
   @doc """
   Retrieve the list of positions.
   """
-  def positions(%Params{client: client}) do
-    client
-    |> get(@routes[:portfolio_positions])
+  def positions(%Params{} = params) do
+    do_get(params, :portfolio_positions)
   end
 
   @doc """
   Retrieve the list of equity holdings.
   """
-  def holdings(%Params{client: client}) do
-    client
-    |> get(@routes[:portfolio_holdings])
+  def holdings(%Params{} = params) do
+    do_get(params, :portfolio_holdings)
   end
 
   @doc """
   Modify an open position's product type.
   """
   def convert_position(
-        %Params{client: client},
+        %Params{} = params,
         exchange,
         tradingsymbol,
         transaction_type,
@@ -383,32 +399,28 @@ defmodule Zerodha.KiteConnect do
     # |> Enum.filter(fn {_, v} -> !is_nil(v) end)
     # |> Enum.into(%{})
 
-    client
-    |> put(@routes[:portfolio_positions_convert], order_params)
-    |> IO.inspect()
+    do_put(params, :portfolio_positions_convert, order_params)
   end
 
   @doc """
   Get all mutual fund orders.
   """
-  def mf_orders(%Params{client: client}) do
-    client
-    |> get(@routes[:mf_orders])
+  def mf_orders(%Params{} = params) do
+    do_get(params, :mf_orders)
   end
 
   @doc """
   Get individual mutual fund order info.
   """
-  def mf_orders(%Params{client: client}, order_id) do
-    client
-    |> get(@routes[:mf_order_info], query: %{order_id: order_id})
+  def mf_orders(%Params{} = params, order_id) do
+    do_get(params, :mf_order_info, order_id: order_id)
   end
 
   @doc """
   Place a mutual fund order.
   """
   def place_mf_order(
-        %Params{client: client},
+        %Params{} = params,
         tradingsymbol,
         transaction_type,
         quantity \\ nil,
@@ -426,40 +438,35 @@ defmodule Zerodha.KiteConnect do
     # |> Enum.filter(fn {_, v} -> !is_nil(v) end)
     # |> Enum.into(%{})
 
-    client
-    |> post(@routes[:mf_order_place], order_params)
-    |> IO.inspect()
+    do_post(params, :mf_order_place, order_params)
   end
 
   @doc """
   Cancel a mutual fund order.
   """
-  def cancel_mf_order(%Params{client: client}, order_id) do
-    client
-    |> get(@routes[:mf_order_cancel], query: %{order_id: order_id})
+  def cancel_mf_order(%Params{} = params, order_id) do
+    do_delete(params, :mf_order_cancel, order_id: order_id)
   end
 
   @doc """
   Get list of all mutual fund SIP's.
   """
-  def mf_sips(%Params{client: client}) do
-    client
-    |> get(@routes[:mf_sips])
+  def mf_sips(%Params{} = params) do
+    do_get(params, :mf_sips)
   end
 
   @doc """
   Get individual mutual fund SIP info.
   """
-  def mf_sips(%Params{client: client}, sip_id) do
-    client
-    |> get(@routes[:mf_sip_info], query: %{sip_id: sip_id})
+  def mf_sips(%Params{} = params, sip_id) do
+    do_get(params, :mf_sip_info, sip_id: sip_id)
   end
 
   @doc """
   Place a mutual fund SIP.
   """
   def place_mf_sip(
-        %Params{client: client},
+        %Params{} = params,
         tradingsymbol,
         amount,
         installments,
@@ -481,16 +488,14 @@ defmodule Zerodha.KiteConnect do
     # |> Enum.filter(fn {_, v} -> !is_nil(v) end)
     # |> Enum.into(%{})
 
-    client
-    |> post(@routes[:mf_sip_place], order_params)
-    |> IO.inspect()
+    do_post(params, :mf_sip_place, order_params)
   end
 
   @doc """
   Place a mutual fund SIP.
   """
   def modify_mf_sip(
-        %Params{client: client},
+        %Params{} = params,
         sip_id,
         amount \\ nil,
         status \\ nil,
@@ -506,38 +511,32 @@ defmodule Zerodha.KiteConnect do
       |> Map.put(:frequency, frequency)
       |> Map.put(:instalment_day, installment_day)
 
-    client
-    |> put(@routes[:mf_sip_place], order_params, query: %{sip_id: sip_id})
-    |> IO.inspect()
+    do_put(params, :mf_sip_modify, order_params, sip_id: sip_id)
   end
 
   @doc """
   Cancel a mutual fund SIP.
   """
-  def cancel_mf_sip(%Params{client: client}, sip_id) do
-    client
-    |> delete(@routes[:mf_sip_cancel], query: %{sip_id: sip_id})
+  def cancel_mf_sip(%Params{} = params, sip_id) do
+    do_delete(params, :mf_sip_cancel, sip_id: sip_id)
   end
 
   @doc """
   Get list of mutual fund holdings.
   """
-  def mf_holdings(%Params{client: client}) do
-    client
-    |> get(@routes[:mf_holdings])
+  def mf_holdings(%Params{} = params) do
+    do_get(params, :mf_holdings)
   end
 
   @doc """
   Get list of mutual fund instruments.
   """
-  def mf_instruments(%Params{client: client}) do
-    client
-    |> get(@routes[:mf_instruments])
+  def mf_instruments(%Params{} = params) do
+    do_get(params, :mf_instruments)
   end
 
-  def instruments(%Params{client: client}) do
-    client
-    |> get(@routes[:market_instruments_all])
+  def instruments(%Params{} = params) do
+    do_get(params, :market_instruments_all)
   end
 
   @doc """
@@ -548,9 +547,8 @@ defmodule Zerodha.KiteConnect do
 
   - `exchange` is specific exchange to fetch (Optional)
   """
-  def instruments(%Params{client: client}, exchange) do
-    client
-    |> get(@routes[:market_instruments], query: %{exchange: exchange})
+  def instruments(%Params{} = params, exchange) do
+    do_get(params, :market_instruments, exchange: exchange)
   end
 
   @doc """
@@ -558,14 +556,8 @@ defmodule Zerodha.KiteConnect do
 
   - `instruments` is a list of instruments, Instrument are in the format of `exchange:tradingsymbol`. For example NSE:INFY
   """
-  # def quote(%Params{client: client}, [ins | _]) when not is_nil(ins) and is_list(ins) do
-  #   # If first element is a list then accept it as instruments list for legacy reason
-  #   client
-  #   |> get(@routes[:market_quote], %{i: ins})
-  # end
-  def quote(%Params{client: client}, [] = intruments_list) when is_list(intruments_list) do
-    client
-    |> get(@routes[:market_quote], %{i: intruments_list})
+  def quote(%Params{} = params, [] = intruments_list) when is_list(intruments_list) do
+    do_get(params, :market_quote, nil, %{i: intruments_list})
 
     # TODO: need to format data
   end
@@ -575,9 +567,8 @@ defmodule Zerodha.KiteConnect do
 
   - `instruments` is a list of instruments, Instrument are in the format of `exchange:tradingsymbol`. For example NSE:INFY
   """
-  def ohlc(%Params{client: client}, [] = intruments_list) when is_list(intruments_list) do
-    client
-    |> get(@routes[:market_quote_ohlc], %{i: intruments_list})
+  def ohlc(%Params{} = params, [] = intruments_list) when is_list(intruments_list) do
+    do_get(params, :market_quote_ohlc, nil, %{i: intruments_list})
   end
 
   @doc """
@@ -585,9 +576,8 @@ defmodule Zerodha.KiteConnect do
 
   - `instruments` is a list of instruments, Instrument are in the format of `exchange:tradingsymbol`. For example NSE:INFY
   """
-  def ltp(%Params{client: client}, [] = intruments_list) when is_list(intruments_list) do
-    client
-    |> get(@routes[:market_quote_ltp], %{i: intruments_list})
+  def ltp(%Params{} = params, [] = intruments_list) when is_list(intruments_list) do
+    do_get(params, :market_quote_ltp, nil, %{i: intruments_list})
   end
 
   @doc """
@@ -603,8 +593,8 @@ defmodule Zerodha.KiteConnect do
   - `oi` is a boolean flag to get open interest.
   """
   def historical_data(
-        %Params{client: client},
-        _instrument_token,
+        %Params{} = params,
+        instrument_token,
         %DateTime{} = from_date,
         %DateTime{} = to_date,
         interval,
@@ -615,7 +605,7 @@ defmodule Zerodha.KiteConnect do
     from_date_string = Calendar.strftime(from_date, date_string_format)
     to_date_string = Calendar.strftime(to_date, date_string_format)
 
-    params = %{
+    query_params = %{
       from: from_date_string,
       to: to_date_string,
       interval: interval,
@@ -623,12 +613,14 @@ defmodule Zerodha.KiteConnect do
       oi: if(oi, do: 1, else: 0)
     }
 
-    client
-    |> get(@routes[:market_historical], params)
+    do_get(
+      params,
+      :market_historical,
+      [instrument_token: instrument_token, interval: interval],
+      query_params
+    )
 
-    # TODO: need to add url_args
-    # {"instrument_token": instrument_token, "interval": interval}
-    # Need to format this data as well
+    # TODO: Need to format this data as well
   end
 
   @doc """
@@ -640,22 +632,17 @@ defmodule Zerodha.KiteConnect do
   @doc """
   Fetch list of GTT existing in an account.
   """
-  def get_gtts(%Params{client: client}) do
-    client
-    |> get(@routes[:gtt])
+  def get_gtts(%Params{} = params) do
+    do_get(params, :gtt)
   end
 
   @doc """
   Fetch list of a GTT.
   """
-  def get_gtt(%Params{client: client}, trigger_id) do
-    client
-    |> get(@routes[:gtt_info], query: %{trigger_id: trigger_id})
+  def get_gtt(%Params{} = params, trigger_id) do
+    do_get(params, :gtt_info, trigger_id: trigger_id)
   end
 
-  @doc """
-  Get GTT Payload
-  """
   @gtt_type_SINGLE Constants.gtt_type_SINGLE()
   @gtt_type_OCO Constants.gtt_type_OCO()
   defp get_gtt_payload(
@@ -717,7 +704,7 @@ defmodule Zerodha.KiteConnect do
       - `price` The min or max price to execute the order at (for LIMIT orders)
   """
   def place_gtt(
-        %Params{client: client},
+        %Params{} = params,
         trigger_type,
         tradingsymbol,
         exchange,
@@ -728,12 +715,13 @@ defmodule Zerodha.KiteConnect do
     {condition, gtt_orders} =
       get_gtt_payload(trigger_type, tradingsymbol, exchange, trigger_values, last_price, orders)
 
-    client
-    |> post(@routes[:gtt_place], %{
+    do_post(params, :gtt_place, %{
       condition: Jason.encode(condition),
       orders: Jason.encode(gtt_orders),
       type: trigger_type
     })
+
+    # TODO: need to check json methods
   end
 
   @doc """
@@ -750,7 +738,7 @@ defmodule Zerodha.KiteConnect do
       - `price` The min or max price to execute the order at (for LIMIT orders)
   """
   def modify_gtt(
-        %Params{client: client},
+        %Params{} = params,
         trigger_id,
         trigger_type,
         tradingsymbol,
@@ -762,23 +750,59 @@ defmodule Zerodha.KiteConnect do
     {condition, gtt_orders} =
       get_gtt_payload(trigger_type, tradingsymbol, exchange, trigger_values, last_price, orders)
 
-    client
-    |> put(
-      @routes[:gtt_modify],
+    do_put(
+      params,
+      :gtt_modify,
       %{
         condition: Jason.encode(condition),
         orders: Jason.encode(gtt_orders),
         type: trigger_type
       },
-      query: %{trigger_id: trigger_id}
+      trigger_id: trigger_id
     )
   end
 
   @doc """
   Delete a GTT order.
   """
-  def delete_gtt(%Params{client: client}, trigger_id) do
-    client
-    |> delete(@routes[:gtt_delete], query: %{trigger_id: trigger_id})
+  def delete_gtt(%Params{} = params, trigger_id) do
+    do_delete(params, :gtt_delete, trigger_id: trigger_id)
   end
+
+  @doc """
+  Calculate margins for requested order list considering the existing positions and open orders
+
+  - `params` is list of orders to retrive margins detail
+  """
+  def order_margins(%Params{} = params, body_params) do
+    do_post(params, :order_margins, body_params)
+
+    # TODO: need to check for this is_json
+  end
+
+  @doc """
+  Calculate total margins required for basket of orders including margin benefits
+  - `params` is list of orders to fetch basket margin
+  - `consider_positions` is a boolean to consider users positions
+  - `mode` is margin response mode type. compact - Compact mode will only give the total margins
+  """
+  def basket_order_margins(
+        %Params{} = params,
+        body_params,
+        consider_positions \\ true,
+        mode \\ nil
+      ) do
+    do_post(params, :order_margins_basket, body_params, nil, %{
+      consider_positions: consider_positions,
+      mode: mode
+    })
+  end
+
+  defp parse_instruments(data) do
+    CSV.decode(data)
+    # TODO need to implement this.
+  end
+
+  defp parse_mf_instruments(data), do: true
+  # TODO need to implement this later after CSV learnings.
 end
