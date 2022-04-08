@@ -9,6 +9,8 @@ defmodule Zerodha.KiteConnect do
   alias Jason
   use Tesla
 
+  @routes Constants.routes()
+
   @doc """
   Need to add default values for access token and api key from config file.
   """
@@ -46,15 +48,11 @@ defmodule Zerodha.KiteConnect do
     # need to parse this result and apply the access token.
   end
 
-  def orders(client) do
-    get(client, Constants.routes()[:orders])
-  end
-
   def generate_session(%Params{} = params, request_token, api_secret) do
     checksum = generate_checksum(params.api_key <> request_token <> api_secret)
 
     params.client
-    |> post(Constants.routes()[:api_token], %{
+    |> post(@routes[:api_token], %{
       api_key: params.api_key,
       checksum: checksum,
       request_token: request_token
@@ -152,7 +150,7 @@ defmodule Zerodha.KiteConnect do
         client: client
       }) do
     client
-    |> delete(Constants.routes()[:api_token_invalidate], %{
+    |> delete(@routes[:api_token_invalidate], %{
       api_key: api_key,
       access_token: access_token
     })
@@ -163,7 +161,7 @@ defmodule Zerodha.KiteConnect do
         access_token
       ) do
     client
-    |> delete(Constants.routes()[:api_token_invalidate], %{
+    |> delete(@routes[:api_token_invalidate], %{
       api_key: api_key,
       access_token: access_token
     })
@@ -178,7 +176,7 @@ defmodule Zerodha.KiteConnect do
 
   def profile(%Params{client: client}) do
     client
-    |> get(Constants.routes()[:user_profile])
+    |> get(@routes[:user_profile])
   end
 
   @doc """
@@ -186,7 +184,7 @@ defmodule Zerodha.KiteConnect do
   """
   def margins(%Params{client: client}) do
     client
-    |> get(Constants.routes()[:user_margins])
+    |> get(@routes[:user_margins])
   end
 
   @doc """
@@ -195,7 +193,7 @@ defmodule Zerodha.KiteConnect do
   """
   def margins(%Params{client: client}, segment) do
     client
-    |> get(Constants.routes()[:user_margins], %{segment: segment})
+    |> get(@routes[:user_margins], %{segment: segment})
   end
 
   @doc """
@@ -240,7 +238,7 @@ defmodule Zerodha.KiteConnect do
       |> Enum.into(%{})
 
     client
-    |> post(Constants.routes()[:order_place], order_params, query: %{variety: variety})
+    |> post(@routes[:order_place], order_params, query: %{variety: variety})
     |> IO.inspect()
 
     # We need to extract order_id from the response
@@ -276,9 +274,7 @@ defmodule Zerodha.KiteConnect do
       |> Enum.into(%{})
 
     client
-    |> put(Constants.routes()[:order_modify], order_params,
-      query: %{variety: variety, order_id: order_id}
-    )
+    |> put(@routes[:order_modify], order_params, query: %{variety: variety, order_id: order_id})
     |> IO.inspect()
 
     # We need to extract order_id from the response
@@ -289,9 +285,9 @@ defmodule Zerodha.KiteConnect do
   """
   def cancel_order(%Params{client: client}, variety, order_id, parent_order_id \\ nil) do
     client
-    |> delete(Constants.routes()[:order_cancel], %{parent_order_id: parent_order_id})
+    |> delete(@routes[:order_cancel], %{parent_order_id: parent_order_id})
 
-    # |> delete!(Constants.routes()[:order_cancel], %{parent_order_id: parent_order_id},
+    # |> delete!(@routes[:order_cancel], %{parent_order_id: parent_order_id},
     #   query: %{variety: variety, order_id: order_id}
     # )
     # TODO: need to put url args
@@ -314,7 +310,7 @@ defmodule Zerodha.KiteConnect do
     format_response()
 
     client
-    |> get(Constants.routes()[:orders])
+    |> get(@routes[:orders])
   end
 
   @doc """
@@ -323,7 +319,7 @@ defmodule Zerodha.KiteConnect do
   """
   def order_history(%Params{client: client}, order_id) do
     client
-    |> get(Constants.routes()[:orders_info], query: %{order_id: order_id})
+    |> get(@routes[:orders_info], query: %{order_id: order_id})
   end
 
   @doc """
@@ -333,7 +329,7 @@ defmodule Zerodha.KiteConnect do
   """
   def trades(%Params{client: client}) do
     client
-    |> get(Constants.routes()[:trades])
+    |> get(@routes[:trades])
   end
 
   @doc """
@@ -342,7 +338,7 @@ defmodule Zerodha.KiteConnect do
   """
   def order_trades(%Params{client: client}, order_id) do
     client
-    |> get(Constants.routes()[:order_trades], query: %{order_id: order_id})
+    |> get(@routes[:order_trades], query: %{order_id: order_id})
   end
 
   @doc """
@@ -350,7 +346,7 @@ defmodule Zerodha.KiteConnect do
   """
   def positions(%Params{client: client}) do
     client
-    |> get(Constants.routes()[:portfolio_positions])
+    |> get(@routes[:portfolio_positions])
   end
 
   @doc """
@@ -358,7 +354,7 @@ defmodule Zerodha.KiteConnect do
   """
   def holdings(%Params{client: client}) do
     client
-    |> get(Constants.routes()[:portfolio_holdings])
+    |> get(@routes[:portfolio_holdings])
   end
 
   @doc """
@@ -388,7 +384,7 @@ defmodule Zerodha.KiteConnect do
     # |> Enum.into(%{})
 
     client
-    |> put(Constants.routes()[:portfolio_positions_convert], order_params)
+    |> put(@routes[:portfolio_positions_convert], order_params)
     |> IO.inspect()
   end
 
@@ -397,7 +393,7 @@ defmodule Zerodha.KiteConnect do
   """
   def mf_orders(%Params{client: client}) do
     client
-    |> get(Constants.routes()[:mf_orders])
+    |> get(@routes[:mf_orders])
   end
 
   @doc """
@@ -405,7 +401,7 @@ defmodule Zerodha.KiteConnect do
   """
   def mf_orders(%Params{client: client}, order_id) do
     client
-    |> get(Constants.routes()[:mf_order_info], query: %{order_id: order_id})
+    |> get(@routes[:mf_order_info], query: %{order_id: order_id})
   end
 
   @doc """
@@ -431,7 +427,7 @@ defmodule Zerodha.KiteConnect do
     # |> Enum.into(%{})
 
     client
-    |> post(Constants.routes()[:mf_order_place], order_params)
+    |> post(@routes[:mf_order_place], order_params)
     |> IO.inspect()
   end
 
@@ -440,7 +436,7 @@ defmodule Zerodha.KiteConnect do
   """
   def cancel_mf_order(%Params{client: client}, order_id) do
     client
-    |> get(Constants.routes()[:mf_order_cancel], query: %{order_id: order_id})
+    |> get(@routes[:mf_order_cancel], query: %{order_id: order_id})
   end
 
   @doc """
@@ -448,7 +444,7 @@ defmodule Zerodha.KiteConnect do
   """
   def mf_sips(%Params{client: client}) do
     client
-    |> get(Constants.routes()[:mf_sips])
+    |> get(@routes[:mf_sips])
   end
 
   @doc """
@@ -456,7 +452,7 @@ defmodule Zerodha.KiteConnect do
   """
   def mf_sips(%Params{client: client}, sip_id) do
     client
-    |> get(Constants.routes()[:mf_sip_info], query: %{sip_id: sip_id})
+    |> get(@routes[:mf_sip_info], query: %{sip_id: sip_id})
   end
 
   @doc """
@@ -486,7 +482,7 @@ defmodule Zerodha.KiteConnect do
     # |> Enum.into(%{})
 
     client
-    |> post(Constants.routes()[:mf_sip_place], order_params)
+    |> post(@routes[:mf_sip_place], order_params)
     |> IO.inspect()
   end
 
@@ -511,7 +507,7 @@ defmodule Zerodha.KiteConnect do
       |> Map.put(:instalment_day, installment_day)
 
     client
-    |> put(Constants.routes()[:mf_sip_place], order_params, query: %{sip_id: sip_id})
+    |> put(@routes[:mf_sip_place], order_params, query: %{sip_id: sip_id})
     |> IO.inspect()
   end
 
@@ -520,7 +516,7 @@ defmodule Zerodha.KiteConnect do
   """
   def cancel_mf_sip(%Params{client: client}, sip_id) do
     client
-    |> delete(Constants.routes()[:mf_sip_cancel], query: %{sip_id: sip_id})
+    |> delete(@routes[:mf_sip_cancel], query: %{sip_id: sip_id})
   end
 
   @doc """
@@ -528,7 +524,7 @@ defmodule Zerodha.KiteConnect do
   """
   def mf_holdings(%Params{client: client}) do
     client
-    |> get(Constants.routes()[:mf_holdings])
+    |> get(@routes[:mf_holdings])
   end
 
   @doc """
@@ -536,12 +532,12 @@ defmodule Zerodha.KiteConnect do
   """
   def mf_instruments(%Params{client: client}) do
     client
-    |> get(Constants.routes()[:mf_instruments])
+    |> get(@routes[:mf_instruments])
   end
 
   def instruments(%Params{client: client}) do
     client
-    |> get(Constants.routes()[:market_instruments_all])
+    |> get(@routes[:market_instruments_all])
   end
 
   @doc """
@@ -554,6 +550,235 @@ defmodule Zerodha.KiteConnect do
   """
   def instruments(%Params{client: client}, exchange) do
     client
-    |> get(Constants.routes()[:market_instruments], query: %{exchange: exchange})
+    |> get(@routes[:market_instruments], query: %{exchange: exchange})
+  end
+
+  @doc """
+  Retrieve quote for list of instruments.
+
+  - `instruments` is a list of instruments, Instrument are in the format of `exchange:tradingsymbol`. For example NSE:INFY
+  """
+  # def quote(%Params{client: client}, [ins | _]) when not is_nil(ins) and is_list(ins) do
+  #   # If first element is a list then accept it as instruments list for legacy reason
+  #   client
+  #   |> get(@routes[:market_quote], %{i: ins})
+  # end
+  def quote(%Params{client: client}, [] = intruments_list) when is_list(intruments_list) do
+    client
+    |> get(@routes[:market_quote], %{i: intruments_list})
+
+    # TODO: need to format data
+  end
+
+  @doc """
+  Retrieve OHLC and market depth for list of instruments.
+
+  - `instruments` is a list of instruments, Instrument are in the format of `exchange:tradingsymbol`. For example NSE:INFY
+  """
+  def ohlc(%Params{client: client}, [] = intruments_list) when is_list(intruments_list) do
+    client
+    |> get(@routes[:market_quote_ohlc], %{i: intruments_list})
+  end
+
+  @doc """
+  Retrieve last price for list of instruments.
+
+  - `instruments` is a list of instruments, Instrument are in the format of `exchange:tradingsymbol`. For example NSE:INFY
+  """
+  def ltp(%Params{client: client}, [] = intruments_list) when is_list(intruments_list) do
+    client
+    |> get(@routes[:market_quote_ltp], %{i: intruments_list})
+  end
+
+  @doc """
+  Retrieve historical data (candles) for an instrument.
+  Although the actual response JSON from the API does not have field
+  names such has 'open', 'high' etc., this function call structures
+  the data into an array of objects with field names. For example:
+  - `instrument_token` is the instrument identifier (retrieved from the instruments()) call.
+  - `from_date` is the From date (datetime struct).
+  - `to_date` is the To date (datetime struct).
+  - `interval` is the candle interval (minute, day, 5 minute etc.).
+  - `continuous` is a boolean flag to get continuous data for futures and options instruments.
+  - `oi` is a boolean flag to get open interest.
+  """
+  def historical_data(
+        %Params{client: client},
+        _instrument_token,
+        %DateTime{} = from_date,
+        %DateTime{} = to_date,
+        interval,
+        continuous \\ false,
+        oi \\ false
+      ) do
+    date_string_format = "%y-%m-%d %I:%M:%S"
+    from_date_string = Calendar.strftime(from_date, date_string_format)
+    to_date_string = Calendar.strftime(to_date, date_string_format)
+
+    params = %{
+      from: from_date_string,
+      to: to_date_string,
+      interval: interval,
+      continuous: if(continuous, do: 1, else: 0),
+      oi: if(oi, do: 1, else: 0)
+    }
+
+    client
+    |> get(@routes[:market_historical], params)
+
+    # TODO: need to add url_args
+    # {"instrument_token": instrument_token, "interval": interval}
+    # Need to format this data as well
+  end
+
+  @doc """
+  "Retrieve the buy/sell trigger range for Cover Orders.
+  TODO: Need to implement
+  """
+  def trigger_range(), do: true
+
+  @doc """
+  Fetch list of GTT existing in an account.
+  """
+  def get_gtts(%Params{client: client}) do
+    client
+    |> get(@routes[:gtt])
+  end
+
+  @doc """
+  Fetch list of a GTT.
+  """
+  def get_gtt(%Params{client: client}, trigger_id) do
+    client
+    |> get(@routes[:gtt_info], query: %{trigger_id: trigger_id})
+  end
+
+  @doc """
+  Get GTT Payload
+  """
+  @gtt_type_SINGLE Constants.gtt_type_SINGLE()
+  @gtt_type_OCO Constants.gtt_type_OCO()
+  defp get_gtt_payload(
+         trigger_type,
+         tradingsymbol,
+         exchange,
+         [] = trigger_values,
+         last_price,
+         orders
+       )
+       when trigger_type in [@gtt_type_SINGLE, @gtt_type_OCO] do
+    if trigger_type == @gtt_type_SINGLE and Enum.count(trigger_values) != 1 do
+      raise "invalid `trigger_values` for single leg order type"
+    end
+
+    if trigger_type == @gtt_type_OCO and Enum.count(trigger_values) != 2 do
+      raise "invalid `trigger_values` for OCO order type"
+    end
+
+    condition = %{
+      exchange: exchange,
+      tradingsymbol: tradingsymbol,
+      trigger_values: trigger_values,
+      last_price: last_price
+    }
+
+    gtt_orders =
+      for o <- orders do
+        for req <- ["transaction_type", "quantity", "order_type", "product", "price"] do
+          if req not in o do
+            raise "#{req} missing inside orders"
+          end
+        end
+
+        %{
+          exchange: exchange,
+          tradingsymbol: tradingsymbol,
+          transaction_type: o[:transaction_type],
+          order_type: o[:order_type],
+          quantity: o[:quantity],
+          product: o[:product],
+          price: o[:price]
+        }
+      end
+
+    {condition, gtt_orders}
+  end
+
+  @doc """
+  Place GTT order
+  - `trigger_type` The type of GTT order(single/two-leg).
+  - `tradingsymbol` Trading symbol of the instrument.
+  - `exchange` Name of the exchange.
+  - `trigger_values` Trigger values (json array).
+  - `last_price` Last price of the instrument at the time of order placement.
+  - `orders` JSON order array containing following fields
+      - `transaction_type` BUY or SELL
+      - `quantity` Quantity to transact
+      - `price` The min or max price to execute the order at (for LIMIT orders)
+  """
+  def place_gtt(
+        %Params{client: client},
+        trigger_type,
+        tradingsymbol,
+        exchange,
+        trigger_values,
+        last_price,
+        orders
+      ) do
+    {condition, gtt_orders} =
+      get_gtt_payload(trigger_type, tradingsymbol, exchange, trigger_values, last_price, orders)
+
+    client
+    |> post(@routes[:gtt_place], %{
+      condition: Jason.encode(condition),
+      orders: Jason.encode(gtt_orders),
+      type: trigger_type
+    })
+  end
+
+  @doc """
+  Place GTT order
+  - `trigger_id` ID of GTT order we want to modify.
+  - `trigger_type` The type of GTT order(single/two-leg).
+  - `tradingsymbol` Trading symbol of the instrument.
+  - `exchange` Name of the exchange.
+  - `trigger_values` Trigger values (json array).
+  - `last_price` Last price of the instrument at the time of order placement.
+  - `orders` JSON order array containing following fields
+      - `transaction_type` BUY or SELL
+      - `quantity` Quantity to transact
+      - `price` The min or max price to execute the order at (for LIMIT orders)
+  """
+  def modify_gtt(
+        %Params{client: client},
+        trigger_id,
+        trigger_type,
+        tradingsymbol,
+        exchange,
+        trigger_values,
+        last_price,
+        orders
+      ) do
+    {condition, gtt_orders} =
+      get_gtt_payload(trigger_type, tradingsymbol, exchange, trigger_values, last_price, orders)
+
+    client
+    |> put(
+      @routes[:gtt_modify],
+      %{
+        condition: Jason.encode(condition),
+        orders: Jason.encode(gtt_orders),
+        type: trigger_type
+      },
+      query: %{trigger_id: trigger_id}
+    )
+  end
+
+  @doc """
+  Delete a GTT order.
+  """
+  def delete_gtt(%Params{client: client}, trigger_id) do
+    client
+    |> delete(@routes[:gtt_delete], query: %{trigger_id: trigger_id})
   end
 end
