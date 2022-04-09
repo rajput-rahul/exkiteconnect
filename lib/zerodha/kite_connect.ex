@@ -17,7 +17,6 @@ defmodule Zerodha.KiteConnect do
   def init(
         api_key,
         access_token \\ nil,
-        root_url \\ Constants.default_root_url(),
         debug \\ false,
         disable_ssl \\ false,
         timeout \\ Constants.default_timeout()
@@ -27,22 +26,27 @@ defmodule Zerodha.KiteConnect do
       api_key: api_key,
       debug: debug,
       disable_ssl: disable_ssl,
-      root_url: root_url,
       timeout: timeout
     }
   end
 
-  def setup(%Params{} = params, api_secret \\ nil) do
-    resp = get(login_url(params))
+  defp login_url(api_key) do
+    "#{Constants.default_login_uri()}?api_key=#{api_key}&v=3"
+  end
 
-    Jason.decode(resp.body)
-    |> IO.inspect()
+  def setup(api_key, api_secret) do
+    # Handle api_secrets from env variables
+    {:ok, _t} = _resp = get(login_url(api_key))
 
-    # just imagine it works
-    request_token = resp.body.request_token
+    # IO.inspect(resp)
 
-    params
-    |> set_client(create_client())
+    # Jason.decode(t.body)
+    # |> IO.inspect()
+    # request_token = resp.body.request_token
+    request_token = "reqtok"
+    # TODO: Need to fix this
+
+    init(api_key)
     |> generate_session(request_token, api_secret)
 
     # need to parse this result and apply the access token.
@@ -51,12 +55,41 @@ defmodule Zerodha.KiteConnect do
   def generate_session(%Params{} = params, request_token, api_secret) do
     checksum = generate_checksum(params.api_key <> request_token <> api_secret)
 
-    params.client
-    |> post(@routes[:api_token], %{
-      api_key: params.api_key,
-      checksum: checksum,
-      request_token: request_token
-    })
+    access_token =
+      params
+      |> set_client(create_client())
+      |> do_post(:api_token, %{
+        api_key: params.api_key,
+        checksum: checksum,
+        request_token: request_token
+      })
+      |> extract_access_token()
+
+    params
+    |> set_access_token(access_token)
+    |> setup_client_with_access_token(access_token)
+  end
+
+  def setup_client_with_access_token(%Params{api_key: api_key} = params, access_token) do
+    middleware = [
+      {Tesla.Middleware.BaseUrl,
+       Application.get_env(:zerodha, :base_url, Constants.default_root_url())},
+      Tesla.Middleware.JSON,
+      Tesla.Middleware.Logger,
+      {Tesla.Middleware.Headers,
+       [{"X-Kite-Version", 3}, {"Authorization", "token #{api_key}:#{access_token}"}]}
+    ]
+
+    params
+    |> set_client(Tesla.client(middleware))
+  end
+
+  defp extract_access_token(%Tesla.Env{body: %{"data" => %{"access_token" => access_token}}}) do
+    access_token
+  end
+
+  defp extract_access_token(resp) do
+    raise "Invalid response returned. Either you have provided wrong root URL or `#{Constants.default_root_url()}` is not working. \n#{resp.body}"
   end
 
   defp generate_checksum(value) do
@@ -69,7 +102,8 @@ defmodule Zerodha.KiteConnect do
     middleware = [
       {Tesla.Middleware.BaseUrl,
        Application.get_env(:zerodha, :base_url, Constants.default_root_url())},
-      Tesla.Middleware.JSON
+      Tesla.Middleware.JSON,
+      {Tesla.Middleware.Headers, [{"X-Kite-Version", 3}]}
     ]
 
     Tesla.client(middleware)
@@ -78,21 +112,42 @@ defmodule Zerodha.KiteConnect do
   defp do_get(%Params{client: client}, route, url_args \\ nil, query \\ %{}) do
     client
     |> get(format_url(route, url_args), query: query)
+    |> case do
+      {:ok, resp} -> resp |> ttttt("OK OK OK")
+      {_, resp} -> resp |> ttttt("ERROR ERROR")
+    end
   end
 
   defp do_post(%Params{client: client}, route, body_params, url_args \\ nil, query \\ %{}) do
     client
     |> post(format_url(route, url_args), body_params, query: query)
+    |> case do
+      {:ok, resp} -> resp |> ttttt("OK OK OK")
+      {_, resp} -> resp |> ttttt("ERROR ERROR")
+    end
+  end
+
+  def ttttt(resp, tes) do
+    IO.puts(tes)
+    resp
   end
 
   defp do_put(%Params{client: client}, route, body_params, url_args \\ nil, query \\ %{}) do
     client
     |> put(format_url(route, url_args), body_params, query: query)
+    |> case do
+      {:ok, resp} -> resp |> ttttt("OK OK OK")
+      {_, resp} -> resp |> ttttt("ERROR ERROR")
+    end
   end
 
   defp do_delete(%Params{client: client}, route, url_args \\ nil, query \\ %{}) do
     client
     |> delete(format_url(route, url_args), query: query)
+    |> case do
+      {:ok, resp} -> resp |> ttttt("OK OK OK")
+      {_, resp} -> resp |> ttttt("ERROR ERROR")
+    end
   end
 
   # def format(route, url_args), do: format_url(route, url_args)
@@ -164,10 +219,6 @@ defmodule Zerodha.KiteConnect do
   def enable_debug(%Params{} = params) do
     params
     |> Map.put(:debug, true)
-  end
-
-  def login_url(%Params{api_key: api_key}) do
-    "#{Constants.default_login_uri()}?api_key=#{api_key}&v=3"
   end
 
   @doc """
