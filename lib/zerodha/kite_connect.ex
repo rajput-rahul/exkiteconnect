@@ -6,7 +6,6 @@ defmodule Zerodha.KiteConnect do
 
   alias Zerodha.Constants
   alias Zerodha.Params
-  alias Jason
   use Tesla
 
   @routes Constants.routes()
@@ -66,10 +65,11 @@ defmodule Zerodha.KiteConnect do
   def setup_client_with_access_token(%Params{api_key: api_key} = params, access_token, root_url) do
     middleware = [
       {Tesla.Middleware.BaseUrl, root_url},
-      Tesla.Middleware.JSON,
-      Tesla.Middleware.Logger,
+      Tesla.Middleware.DecodeJson,
+      Tesla.Middleware.EncodeFormUrlencoded,
       {Tesla.Middleware.Headers,
        [{"X-Kite-Version", 3}, {"Authorization", "token #{api_key}:#{access_token}"}]}
+      #  , encode_content_type: "application/x-www-form-urlencoded"}
     ]
 
     params
@@ -88,13 +88,15 @@ defmodule Zerodha.KiteConnect do
     :sha256
     |> :crypto.hash(value)
     |> Base.encode16()
+    |> String.downcase()
   end
 
   def create_client() do
     middleware = [
       {Tesla.Middleware.BaseUrl,
        Application.get_env(:zerodha, :base_url, Constants.default_root_url())},
-      Tesla.Middleware.JSON,
+       Tesla.Middleware.DecodeJson,
+       Tesla.Middleware.EncodeFormUrlencoded,
       {Tesla.Middleware.Headers, [{"X-Kite-Version", 3}]}
     ]
 
@@ -105,8 +107,8 @@ defmodule Zerodha.KiteConnect do
     client
     |> get(format_url(route, url_args), query: query)
     |> case do
-      {:ok, resp} -> resp |> ttttt("OK OK OK")
-      {_, resp} -> resp |> ttttt("ERROR ERROR")
+      {:ok, resp} -> resp
+      {_, resp} -> resp
     end
   end
 
@@ -114,22 +116,17 @@ defmodule Zerodha.KiteConnect do
     client
     |> post(format_url(route, url_args), body_params, query: query)
     |> case do
-      {:ok, resp} -> resp |> ttttt("OK OK OK")
-      {_, resp} -> resp |> ttttt("ERROR ERROR")
+      {:ok, resp} -> resp
+      {_, resp} -> resp
     end
-  end
-
-  def ttttt(resp, tes) do
-    IO.puts(tes)
-    resp
   end
 
   defp do_put(%Params{client: client}, route, body_params, url_args \\ nil, query \\ %{}) do
     client
     |> put(format_url(route, url_args), body_params, query: query)
     |> case do
-      {:ok, resp} -> resp |> ttttt("OK OK OK")
-      {_, resp} -> resp |> ttttt("ERROR ERROR")
+      {:ok, resp} -> resp
+      {_, resp} -> resp
     end
   end
 
@@ -137,8 +134,8 @@ defmodule Zerodha.KiteConnect do
     client
     |> delete(format_url(route, url_args), query: query)
     |> case do
-      {:ok, resp} -> resp |> ttttt("OK OK OK")
-      {_, resp} -> resp |> ttttt("ERROR ERROR")
+      {:ok, resp} -> resp
+      {_, resp} -> resp
     end
   end
 
