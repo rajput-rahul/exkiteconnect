@@ -34,25 +34,18 @@ defmodule Zerodha.KiteConnect do
     "#{Constants.default_login_uri()}?api_key=#{api_key}&v=3"
   end
 
-  def setup(api_key, api_secret) do
-    # Handle api_secrets from env variables
-    {:ok, _t} = _resp = get(login_url(api_key))
+  def login(api_key) do
+    get(login_url(api_key))
+  end
 
-    # IO.inspect(resp)
-
-    # Jason.decode(t.body)
-    # |> IO.inspect()
-    # request_token = resp.body.request_token
-    request_token = "reqtok"
-    # TODO: Need to fix this
-
+  def setup(request_token, api_key, api_secret, root_url \\ Constants.default_root_url()) do
     init(api_key)
-    |> generate_session(request_token, api_secret)
+    |> generate_session(request_token, api_secret, root_url)
 
     # need to parse this result and apply the access token.
   end
 
-  def generate_session(%Params{} = params, request_token, api_secret) do
+  def generate_session(%Params{} = params, request_token, api_secret, root_url \\ Constants.default_root_url()) do
     checksum = generate_checksum(params.api_key <> request_token <> api_secret)
 
     access_token =
@@ -67,13 +60,12 @@ defmodule Zerodha.KiteConnect do
 
     params
     |> set_access_token(access_token)
-    |> setup_client_with_access_token(access_token)
+    |> setup_client_with_access_token(access_token, root_url)
   end
 
-  def setup_client_with_access_token(%Params{api_key: api_key} = params, access_token) do
+  def setup_client_with_access_token(%Params{api_key: api_key} = params, access_token, root_url) do
     middleware = [
-      {Tesla.Middleware.BaseUrl,
-       Application.get_env(:zerodha, :base_url, Constants.default_root_url())},
+      {Tesla.Middleware.BaseUrl, root_url},
       Tesla.Middleware.JSON,
       Tesla.Middleware.Logger,
       {Tesla.Middleware.Headers,
